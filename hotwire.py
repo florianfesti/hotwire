@@ -122,8 +122,8 @@ def splitPath(path, connectors):
     result = []
     for n, pt in enumerate(path):
         for m, (pt1, pt2) in enumerate(connectors):
-            if ((bezmisc.pointdistance(pt, pt1)<2) or
-                (bezmisc.pointdistance(pt, pt2)<2)):
+            if ((bezmisc.pointdistance(pt, pt1)<0.1) or
+                (bezmisc.pointdistance(pt, pt2)<0.1)):
                 result.append((n, m))
     result.append((len(path)-1, -1))
     return result
