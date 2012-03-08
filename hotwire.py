@@ -136,6 +136,14 @@ def splitPaths(path1, path2, connectors):
     cuts2 = splitPath(path2, connectors)
                       
     # XXX checks
+    if len(cuts1) != len(cuts2):
+        sys.stderr.write("Error: XY split %i times while UV split %i times.\n\t Check connection paths!\n" %
+                         (len(cuts1), len(cuts2)))
+        return None, None
+    for (npt1, nc1), (npt2, nc2) in zip(cuts1, cuts2):
+        if nc1 != nc2:
+            sys.stderr.write("Error: Connections are not in the same order for both paths")
+            return None, None
 
     paths1 = []
     last = 0
@@ -197,6 +205,9 @@ class HotWire(inkex.Effect):
             path2 = path1
         else:
             path1, path2 = splitPaths(path1, path2, connectors)
+
+        if path1 is None: # error in splitPaths
+            return
 
         directory = self.options.directory
         if directory.startswith("$HOME"):
