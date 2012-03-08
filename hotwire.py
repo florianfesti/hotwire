@@ -227,7 +227,8 @@ class HotWire(inkex.Effect):
             for i in xrange(len(p1)):
                 x, y = p1[i]
                 u, v = p2[i]
-                f.write("G01 X%7.2f Y%7.2f U%7.2f V%7.2f\n" % (x, y, u, v))
+                # reverse Y and V axis to go from svg to inkscape coordinates
+                f.write("G01 X%7.2f Y%7.2f U%7.2f V%7.2f\n" % (x, 1052.3622-y, u, 1052.3622-v))
         f.close()
 
 if __name__ == '__main__':
