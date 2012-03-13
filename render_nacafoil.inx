@@ -8,13 +8,13 @@
       <page name="foil" _gui-text="Foil Characteristics">
 	<param name="naca" type="string" _gui-text="Naca number (4 or 5 digits)">0012</param>
 	<param name="size" type="float" min="1.0" max="10000.0" _gui-text="Size">150.0</param>
-	<param name="approach" type="optiongroup" appearance="minimal" _gui-tex="Cut from">
-	  <_option value="0">From left</_option>
-	  <_option value="1">From left, ascending</_option>
-	  <_option value="2">From left, descending</_option>
-	  <_option value="3">From rigth</_option>
-	  <_option value="4">From right, ascending</_option>
-	  <_option value="5">From right, descending</_option>
+	<param name="approach" type="optiongroup" appearance="minimal" _gui-text="Cut from">
+	  <_option value="0">left</_option>
+	  <_option value="1">left, ascending</_option>
+	  <_option value="2">left, descending</_option>
+	  <_option value="3">right</_option>
+	  <_option value="4">right, ascending</_option>
+	  <_option value="5">right, descending</_option>
 	</param>
 	<param name="approachwidth" type="float" min="0.0" max="10000.0" _gui-text="Path to Foil">50</param>
 	<param name="points" type="int" min="10" max="10000" _gui-text="Points per side">100</param>
