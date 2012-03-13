@@ -4,10 +4,41 @@
     <id>info.festi.render_nacafoil</id>
     <dependency type="executable" location="extensions">render_nacafoil.py</dependency>
     <dependency type="executable" location="extensions">inkex.py</dependency>
-    <param name="naca" type="string" _gui-text="Naca number (4 or 5 digits)">0012</param>
-    <param name="size" type="float" min="1.0" max="10000.0" _gui-text="Size">150.0</param>
-    <param name="points" type="int" min="10" max="10000" _gui-text="Points per side">100</param>
-
+    <param name="main" type="notebook">
+      <page name="foil" _gui-text="Foil Characteristics">
+	<param name="naca" type="string" _gui-text="Naca number (4 or 5 digits)">0012</param>
+	<param name="size" type="float" min="1.0" max="10000.0" _gui-text="Size">150.0</param>
+	<param name="approach" type="optiongroup" appearance="minimal" _gui-tex="Cut from">
+	  <_option value="0">From left</_option>
+	  <_option value="1">From left, ascending</_option>
+	  <_option value="2">From left, descending</_option>
+	  <_option value="3">From rigth</_option>
+	  <_option value="4">From right, ascending</_option>
+	  <_option value="5">From right, descending</_option>
+	</param>
+	<param name="approachwidth" type="float" min="0.0" max="10000.0" _gui-text="Path to Foil">50</param>
+	<param name="points" type="int" min="10" max="10000" _gui-text="Points per side">100</param>
+      </page>
+      <page name="beam" _gui-text="Beam Hole">
+	<param name="beamtype" type="optiongroup" appearance="minimal" _gui-text="Beam Type">
+	  <_option value="0">None</_option>
+	  <_option value="1">Round cut from above</_option>
+	  <_option value="2">Round cut from below</_option>
+	  <_option value="3">Rectangular from above</_option>
+	  <_option value="4">Rectangular from below</_option>
+	</param>
+	<param name="beampos" type="float" min="0.0" max="100.0" _gui-text="Position (%)">40</param>
+	<param name="beamwidth" type="float" min="0.0" max="1000.0" _gui-text="Width/Diameter (mm)">10</param>
+	<param name="beamheight" type="float" min="0.0" max="1000.0" _gui-text="Height (mm)">10</param>
+      </page>
+      <page name="otherside" _gui-text="Otherside">
+	<param name="other" type="boolean" _gui-text="Use differen Shape for UV plane">false</param>
+        <param name="naca2" type="string" _gui-text="Naca number (4 or 5 digits)">Same as XY</param>
+        <param name="size2" type="float" min="1.0" max="10000.0" _gui-text="Size">150.0</param>
+	<param name="xoffset" type="float" min="1.0" max="10000.0" _gui-text="Offset X">0.0</param>
+	<param name="yoffset" type="float" min="1.0" max="10000.0" _gui-text="Offset Y">0.0</param>
+      </page>
+    </param>
     <effect needs-live-preview="true">
         <object-type>path</object-type>
         <effects-menu>
