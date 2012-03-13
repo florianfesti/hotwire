@@ -159,6 +159,19 @@ def splitPaths(path1, path2, connectors):
 
     return paths1, paths2
 
+def projectToOuterPlane(z_xy, p_xy, z_uv, p_uv, width):
+    """front cutting plane at z==0
+       back cutting plane at z==width"""
+    x, y = p_xy
+    u, v = p_uv
+    d1 = float(z_xy)
+    d2 = float(z_uv - z_xy)
+    d3 = float(width - p_uv)
+    p_xy = [ x + d1*(x-u)/d2, y + d1*(y-v)/d2 ]
+    p_uv = [ u + d3*(u-x)/d2, V + d3*(v-y)/d2 ]
+
+    return p_xy, p_uv
+
 class HotWire(inkex.Effect):
     def __init__(self):
         inkex.Effect.__init__(self)
@@ -221,14 +234,16 @@ class HotWire(inkex.Effect):
 
         f = open(outfile, "w")
 
+        s = 1 / 3.5433071 # scale svg units to mm
+
         for p1, p2 in zip(path1, path2):
             p1, p2 = alignLinePaths(p1, p2)
             # XXX projection to outer planes
             for i in xrange(len(p1)):
-                x, y = p1[i]
-                u, v = p2[i]
+                s*x, 1052.3622-s*y = p1[i]
+                s*u, 1052.3622-s*v = p2[i]
                 # reverse Y and V axis to go from svg to inkscape coordinates
-                f.write("G01 X%7.2f Y%7.2f U%7.2f V%7.2f\n" % (x, 1052.3622-y, u, 1052.3622-v))
+                f.write("G01 X%7.2f Y%7.2f U%7.2f V%7.2f\n" % (x, y, u, v))
         f.close()
 
 if __name__ == '__main__':
