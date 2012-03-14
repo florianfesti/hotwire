@@ -24,6 +24,8 @@ import inkex
 import cubicsuperpath, bezmisc, cspsubdiv
 
 def distances(points):
+    if not points:
+        return [0]
     lastpt = points[0]
     dists = []
     for pt in points[1:]:
@@ -205,6 +207,7 @@ class HotWire(inkex.Effect):
             return
         
         path1 = getPath(layers[0], self.options.flat)
+        path2 = None
 
         if len(layers) >= 2:
             path2 = getPath(layers[1], self.options.flat)
@@ -237,11 +240,16 @@ class HotWire(inkex.Effect):
         s = 1 / 3.5433071 # scale svg units to mm
 
         for p1, p2 in zip(path1, path2):
+            if not p1:
+                continue
+            sys.stderr.write("%s %s\n" % (repr(p1), repr(p2)))
             p1, p2 = alignLinePaths(p1, p2)
             # XXX projection to outer planes
             for i in xrange(len(p1)):
-                s*x, 1052.3622-s*y = p1[i]
-                s*u, 1052.3622-s*v = p2[i]
+                x, y = p1[i]
+                u, v = p2[i]
+                x, y = s*x, (1052.3622-y)*s
+                u, v = s*u, (1052.3622-v)*s
                 # reverse Y and V axis to go from svg to inkscape coordinates
                 f.write("G01 X%7.2f Y%7.2f U%7.2f V%7.2f\n" % (x, y, u, v))
         f.close()
