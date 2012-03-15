@@ -24,6 +24,10 @@ import inkex
 import cubicsuperpath, bezmisc, cspsubdiv
 
 def distances(points):
+    """Calculate the distances for a list of points
+    :param points:	iterable of float pairs
+    :return:		list of distance
+    """
     if not points:
         return [0]
     lastpt = points[0]
@@ -40,7 +44,7 @@ def intermediatePoint(pt1, pt2, relDist=0.5):
 
 def alignLinePaths(points1, points2):
     """Takes two arrays of (x, y) points
-       returns two arrays of point swith the same number of points"""
+       returns two arrays of points with the same number of points"""
 
     dists1 = distances(points1)
     dists1.append(0.0)
