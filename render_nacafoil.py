@@ -32,7 +32,7 @@ class Naca(inkex.Effect):
     style = { 'stroke': "#000000",
               'fill': 'none',
               "stroke-width" : "0.5",
-              "marker-start" : "url(#Arrow1Lend)",
+              "marker-start" : "url(#Arrow1Lstart)",
               "marker-end": "url(#Arrow1Lend)",
               "marker-mid": "url(#DiamondSend)",
               }
@@ -133,6 +133,13 @@ class Naca(inkex.Effect):
 
         marker.append(arrow)
 
+    def addLayer(self, name):
+        attribs = {inkex.addNS('label','inkscape') : name,
+                   inkex.addNS('groupmode','inkscape') : "layer",
+                   'style' : simplestyle.formatStyle({"display":"inline"}),
+                   }
+        return inkex.etree.SubElement(self.document.getroot(), "g", attribs)
+
     def pointAt(self, pts, posx):
 
         # bisect
@@ -228,7 +235,7 @@ class Naca(inkex.Effect):
                 pass
 
         awidth = self.options.approachwidth
-        if self.options.approach <= 3: # Start with left/leading eadge
+        if self.options.approach <= 2: # Start with left/leading eadge
             approach1 = []
             approach2 = []
             if self.options.approach == 1: # upwards
@@ -237,7 +244,7 @@ class Naca(inkex.Effect):
             elif self.options.approach == 2: # downwards
                 approach1 = [[-awidth, top], [-0.75*awidth, 0]]
                 approach2 = [[-0.75*awidth, 0], [-awidth, bottom]]
-            pts = approach1 + lower + upper + approach2
+            pts = approach1 + lower + upper + [lower[0]]+ approach2
             l = len(pts)
             la1 = len(approach1)
             ll = len(lower)
@@ -246,7 +253,16 @@ class Naca(inkex.Effect):
                 [la1 + ll ] + \
                 [n+la1+ll for n in conns_upper] + range(l-la2-1, l)
         else: # Start with right/trailing edge
-            pass
+            approach1 = []
+            approach2 = []
+            pts = approach1 + upper + lower + [upper[0]]+ approach2
+            l = len(pts)
+            la1 = len(approach1)
+            lu = len(upper)
+            la2 = len(approach2)
+            conns = range(la1+1) + [n+la1 for n in conns_upper] + \
+                [la1 + lu ] + \
+                [n+la1+lu for n in conns_upper] + range(l-la2-1, l)
 
         return pts, conns, [beam_x, beam_y]
 
@@ -320,33 +336,35 @@ class Naca(inkex.Effect):
             if not foil2: # error
                 return
 
-        cnt = 0
+        layers = []
         for item in self.document.getroot().getchildren():
-            if not (item.tag == inkex.addNS("g",'svg') and
-                    item.get(inkex.addNS('groupmode','inkscape')) == 'layer'):
-                continue
-            cnt += 1
-            if cnt == 1:
-                self.foilToSVG(naca_num, foil1, item)
-            elif cnt == 2:
-                if self.options.other:
-                    offset_x = beam1[0]-beam2[0]
-                    offset_y = beam1[1]-beam2[1]
-                    #offset_x = (self.options.size - self.options.size2) * \
-                    #    self.options.beampos / 100.0
-                    self.foilToSVG(naca_num2, foil2, item,
-                                   offset_x=offset_x, offset_y=offset_y,
-                                   color="#0000FF")
-                else:
-                    break
-            else:
-                self.connectionsToSVG(foil1, connections1,
-                                      foil2, connections2, item,
-                                      offset_x=offset_x, offset_y=offset_y)
-                break
+            if (item.tag == inkex.addNS("g",'svg') and
+                item.get(inkex.addNS('groupmode','inkscape')) == 'layer'):
+                layers.append(item)
 
-        self.addMarker('Arrow1Lstart', False)
-        self.addMarker('Arrow1Lend',  False)
+        if len(layers) < 1:
+            layers.append(self.addLayer("XY"))
+        if self.options.other and len(layers) < 2:
+            layers.append(self.addLayer("UV"))
+        if self.options.other and len(layers) < 3:
+            layers.append(self.addLayer("Connections"))
+
+        self.foilToSVG(naca_num, foil1, layers[0])
+
+        if self.options.other:
+            offset_x = beam1[0]-beam2[0]
+            offset_y = beam1[1]-beam2[1]
+            #offset_x = (self.options.size - self.options.size2) * \
+            #    self.options.beampos / 100.0
+            self.foilToSVG(naca_num2, foil2, layers[1],
+                           offset_x=offset_x, offset_y=offset_y,
+                           color="#0000FF")
+            self.connectionsToSVG(foil1, connections1,
+                                  foil2, connections2, layers[2],
+                                  offset_x=offset_x, offset_y=offset_y)
+
+        self.addMarker('Arrow1Lstart', True)
+        self.addMarker('Arrow1Lend',  True)
 
 if __name__ == '__main__':
     e = Naca()
