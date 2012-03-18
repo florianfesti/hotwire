@@ -181,10 +181,24 @@ def projectToOuterPlane(z_xy, p_xy, z_uv, p_uv, width):
 class HotWire(inkex.Effect):
     def __init__(self):
         inkex.Effect.__init__(self)
+        self.OptionParser.add_option("--main",
+                                     action="store", type="string",
+                                     dest="main")
         self.OptionParser.add_option("--flatness",
                         action="store", type="float", 
                         dest="flat", default='1.0',
                         help="How strong are bends allowed when converting splines to lines")
+        self.OptionParser.add_option("--cspeed", action="store", type="float",
+                                     dest="cspeed", default=400.0)
+        self.OptionParser.add_option("--mspeed", action="store", type="float",
+                                     dest="mspeed", default=400.0)
+
+        self.OptionParser.add_option("--ccorrection", action="store",
+                                     type="int",
+                                     dest="ccorrection", default=0)
+        self.OptionParser.add_option("--cdiam", action="store", type="float",
+                                     dest="cdiam", default=1.0)
+
         self.OptionParser.add_option("-d", "--directory",
                                      action="store", type="string",
                                      dest="directory", default="$HOME/Desktop",
@@ -193,10 +207,20 @@ class HotWire(inkex.Effect):
                                      action="store", type="string",
                                      dest="file", default="hotwire.txt",
                                      help="File name")			
-        self.OptionParser.add_option("",   "--add-numeric-suffix-to-filename",
+        self.OptionParser.add_option("--add-numeric-suffix-to-filename",
                                      action="store", type="inkbool",
                                      dest="add_numeric_suffix_to_filename",
                                      default=True,help="Add numeric suffix to filename")		
+
+        self.OptionParser.add_option("--twosided", type="inkbool", action="store",
+                                     dest="twosided", default=False)
+        self.OptionParser.add_option("--mwidth", type="float", action="store",
+                                     dest="mwidth", default=800.0)
+        self.OptionParser.add_option("--xyplane", type="float", action="store",
+                                     dest="xyplane", default=0.0)
+        self.OptionParser.add_option("--uvplane", type="float", action="store",
+                                     dest="uvplane", default=100.0)
+
 
     def effect(self):
 
@@ -241,12 +265,21 @@ class HotWire(inkex.Effect):
 
         f = open(outfile, "w")
 
+        f.write("""%%
+G21 (use mm)
+F%.0f (Speed)
+""" % min(self.options.cspeed, self.options.mspeed))
+
+        cd = self.options.cdiam
+        f.write(["G40", "G42 D%.2f" % cd, "G41 D%.2f" % cd][self.options.ccorrection])
+        f.write("\n\n")
+
         s = 1 / 3.5433071 # scale svg units to mm
 
         for p1, p2 in zip(path1, path2):
             if not p1:
                 continue
-            sys.stderr.write("%s %s\n" % (repr(p1), repr(p2)))
+            # sys.stderr.write("%s %s\n" % (repr(p1), repr(p2)))
             p1, p2 = alignLinePaths(p1, p2)
             # XXX projection to outer planes
             for i in xrange(len(p1)):
@@ -256,6 +289,10 @@ class HotWire(inkex.Effect):
                 u, v = s*u, (1052.3622-v)*s
                 # reverse Y and V axis to go from svg to inkscape coordinates
                 f.write("G01 X%7.2f Y%7.2f U%7.2f V%7.2f\n" % (x, y, u, v))
+        f.write("""
+M30 (End Program)
+%
+""")
         f.close()
 
 if __name__ == '__main__':

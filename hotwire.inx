@@ -4,13 +4,29 @@
     <id>info.festi.hotwire</id>
     <dependency type="executable" location="extensions">hotwire.py</dependency>
     <dependency type="executable" location="extensions">inkex.py</dependency>
-    <param name="flatness" type="float" min="0.0" max="1000.0" _gui-text="Flatness">1.0</param>
+    <param name="main" type="notebook">
+      <page name="options" _gui-text="Main Options">
+	<param name="flatness" type="float" min="0.0" max="1000.0" _gui-text="Flatness">1.0</param>
+	<param name="cspeed" type="float" min="0.0" max="10000.0" _gui-text="Max. Cutting Speed (mm/min)">400.0</param>
+	<param name="mspeed" type="float" min="0.0" max="10000.0" _gui-text="Max. Machine Speed (mm/min)">400.0</param>
+	<param name="ccorrection" type="optiongroup" appearance="minimal" _gui-text="Correction for cut width">
+	  <_option value="0">none</_option>
+	  <_option value="1">left</_option>
+	  <_option value="2">right</_option>
+	</param>
+	<param name="cdiam" type="float" min="0.0" max="100.0" _gui-text="Cutting diameter(mm)">1.0</param>
 
-
-    <param name="filename" type="string" _gui-text="File:">output.ngc</param>
-    <param name="add-numeric-suffix-to-filename" type="boolean" _gui-text="Add numeric suffix to filename">true</param>
-    <param name="directory" type="string" _gui-text="Directory:">$HOME/Desktop/</param>
-
+	<param name="filename" type="string" _gui-text="File:">output.ngc</param>
+	<param name="add-numeric-suffix-to-filename" type="boolean" _gui-text="Add numeric suffix to filename">true</param>
+	<param name="directory" type="string" _gui-text="Directory:">$HOME/Desktop/</param>
+      </page>
+      <page name="twosided" _gui-text="Two sided">
+	<param name="twosided" type="boolean" _gui-text="Two Sided">false</param>
+	<param name="mwidth" type="float" min="0.0" max="10000.0" _gui-text="Machine Width (mm)">800.0</param>
+	<param name="xyplane" type="float" min="0.0" max="10000.0" _gui-text="Depth of XY Plane (mm)">0.0</param>
+	<param name="uvplane" type="float" min="0.0" max="10000.0" _gui-text="Depth of UV Plane (mm)">100.0</param>
+      </page>
+    </param>
     <effect needs-live-preview="false">
         <object-type>path</object-type>
         <effects-menu>
