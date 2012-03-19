@@ -256,12 +256,20 @@ class HotWire(inkex.Effect):
         directory = self.options.directory
         if directory.startswith("$HOME"):
             directory = "/home/" + os.getenv('USERNAME') + directory[5:]
-        i = 0
-        
+
         outfile_orig = outfile = os.path.join(directory, self.options.file)
-        while os.path.exists(outfile):
+
+        # put number before file name extension
+        outfile_orig = outfile_orig.rsplit(".", 1)
+        if len(outfile_orig) == 2:
+            outfile_orig = ".%i.".join(outfile_orig)
+        else:
+            outfile_orig = outfile_orig[0] + ".%i"
+
+        i = 0
+        while os.path.exists(outfile) and self.options.add_numeric_suffix_to_filename:
             i += 1
-            outfile = outfile_orig + (".%i" % i)
+            outfile = outfile_orig % i
 
         f = open(outfile, "w")
 
