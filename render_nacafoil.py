@@ -20,7 +20,7 @@ import sys
 sys.path.append("/usr/share/inkscape/extensions")
 import os
 
-import inkex, simplestyle
+import inkex, simplestyle, simpletransform
 import naca
 import bisect, math, re
 
@@ -29,13 +29,21 @@ f = 3.5433071 # mm to svg units
 
 class Naca(inkex.Effect):
 
-    style = { 'stroke': "#000000",
-              'fill': 'none',
-              "stroke-width" : "0.5",
-              "marker-start" : "url(#Arrow1Lstart)",
-              "marker-end": "url(#Arrow1Lend)",
-              "marker-mid": "url(#DiamondSend)",
+    style = {
+        'stroke': "#000000",
+        'fill': 'none',
+        "stroke-width" : "0.5",
+        "marker-start" : "url(#NacaArrowStart)",
+        "marker-end": "url(#NacaArrowEnd)",
               }
+    constyle = {
+        'stroke': "#000000",
+        'fill': 'none',
+        "stroke-width" : "0.5",
+        "marker-start" : "url(#NacaDot)",
+        "marker-end": "url(#NacaDot)",
+        "marker-mid": "url(#NacaDot)",
+        }
 
     def __init__(self):
         inkex.Effect.__init__(self)
@@ -95,6 +103,10 @@ class Naca(inkex.Effect):
                                      action="store", type="float",
                                      dest="size2",
                                      default=8.0)
+        self.OptionParser.add_option("--twist",
+                                     action="store", type="float",
+                                     dest="twist",
+                                     default=0.0)
         self.OptionParser.add_option("--xoffset",
                                      action="store", type="float",
                                      dest="xoffset",
@@ -104,7 +116,7 @@ class Naca(inkex.Effect):
                                      dest="yoffset",
                                      default=8.0)
 
-    def addMarker(self, name, rotate):
+    def addMarker(self, name, path, transform=None):
 
         defs = self.xpathSingle('/svg:svg//svg:defs')
 
@@ -123,12 +135,10 @@ class Naca(inkex.Effect):
         marker.set(inkex.addNS('stockid','inkscape'), name)
 
         arrow = inkex.etree.Element("path")
-        arrow.set('d', 'M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z ')
+        arrow.set('d', path)
 
-        if rotate:
-            arrow.set('transform', 'scale(0.8) rotate(180) translate(12.5,0)')
-        else:
-            arrow.set('transform', 'scale(0.8) translate(12.5,0)')
+        if transform:
+            arrow.set('transform', transform)
         arrow.set('style', 'fill-rule:evenodd;stroke:#000000;stroke-width:1.0pt;marker-start:none')
 
         marker.append(arrow)
@@ -164,7 +174,7 @@ class Naca(inkex.Effect):
         d1 = posx - pts[pos][0]
         d2 = pts[pos+1][0] - posx
         dx = pts[pos+1][0] - pts[pos][0]
-        return pos+1, [posx, (pts[pos][1]*d2+pts[pos+1][1]*d1)/dx]
+        return pos, [posx, (pts[pos][1]*d2+pts[pos+1][1]*d1)/dx]
 
     def circle(self, diameter, npts=36):
         return [ [diameter*math.sin(2*math.pi*i/npts),
@@ -180,7 +190,7 @@ class Naca(inkex.Effect):
                  [  x,  y],
                  [0.0,  y]]
 
-    def renderFoil(self, naca_num, size):
+    def renderFoil(self, naca_num, size, twist=0.0):
         l = len(naca_num)
         if l == 4:
             pts = naca.naca4(naca_num, self.options.points, False, True)
@@ -188,27 +198,34 @@ class Naca(inkex.Effect):
             pts = naca.naca5(naca_num, self.options.points, False, True)
         else:
             #sys.stderr.write("Naca number must be 4 or 5 digits\n")
-            return None, None, None
+            return None, None
 
-        conns_upper = []
-        conns_lower = []
-        top = 0
-        bottom = 0
-        pts = [ [size*pt[0], size*pt[1]] for pt in pts ]
-        top = max(pts, key=lambda x: x[1])[1] # highest y value
-        bottom = min(pts, key=lambda x: x[1])[1] # lowest y value
+        for i, pt in enumerate(pts):
+            pts[i] = list(pt)
 
         upper = pts[0:self.options.points]
         lower = pts[self.options.points:]
 
-        beam_x = size * self.options.beampos/100.0
+        conns_upper = []
+        conns_lower = []
+
+        beam_x = self.options.beampos/100.0
 
         n_up, pt_up = self.pointAt(upper, beam_x)
         n_low, pt_low = self.pointAt(lower, beam_x)
         beam_y = (pt_up[1] + pt_low[1]) / 2.0
 
-        if self.options.beamtype in [1,2,3,4]: # center beam
+        trans = simpletransform.composeTransform(
+            simpletransform.parseTransform("rotate(%f)" % (-1*twist)),
+            [[size,0.0,-beam_x*size],
+             [0.0,size,-beam_y*size]])
 
+        for pt in pts:
+            simpletransform.applyTransformToPoint(trans, pt)
+        for pt in pt_up, pt_low:
+            simpletransform.applyTransformToPoint(trans, pt)
+
+        if self.options.beamtype in [1,2,3,4]: # center beam
             if self.options.beamtype in [1,2]: # round
                 beam = self.circle(self.options.beamwidth)
             else: # rectangular
@@ -216,13 +233,13 @@ class Naca(inkex.Effect):
                                       self.options.beamheight)
 
             if self.options.beamtype in [1, 3]: # from above
-                beam = [ [beam_x+x, beam_y+y] for x,y in beam]
                 bl = len(beam)
                 upper = upper[:n_up] + [ pt_up ] + beam + \
                     [ pt_up ] + upper[n_up :]
                 conns_upper = [n_up, n_up+1, n_up+bl, n_up+bl+1]
             else: # from below
-                beam = [ [beam_x+x, beam_y-y] for x,y in beam]
+                for pt in beam: # mirror vertically
+                    pt[1] = -pt[1]
                 bl = len(beam)
                 lower = lower[:n_low] + [ pt_low ] + beam + \
                     [ pt_low ] + lower[n_low:]
@@ -234,37 +251,46 @@ class Naca(inkex.Effect):
             if self.options.beamtype in [6, 7]: # Bottom beam
                 pass
 
-        awidth = self.options.approachwidth
         if self.options.approach <= 2: # Start with left/leading eadge
-            approach1 = []
-            approach2 = []
-            if self.options.approach == 1: # upwards
-                approach1 = [[-awidth, bottom], [-0.75*awidth, 0]]
-                approach2 = [[-0.75*awidth, 0], [-awidth, top]]
-            elif self.options.approach == 2: # downwards
-                approach1 = [[-awidth, top], [-0.75*awidth, 0]]
-                approach2 = [[-0.75*awidth, 0], [-awidth, bottom]]
-            pts = approach1 + lower + upper + [lower[0]]+ approach2
-            l = len(pts)
-            la1 = len(approach1)
-            ll = len(lower)
-            la2 = len(approach2)
-            conns = range(la1+1) + [n+la1 for n in conns_lower] + \
-                [la1 + ll ] + \
-                [n+la1+ll for n in conns_upper] + range(l-la2-1, l)
-        else: # Start with right/trailing edge
-            approach1 = []
-            approach2 = []
-            pts = approach1 + upper + lower + [upper[0]]+ approach2
-            l = len(pts)
-            la1 = len(approach1)
-            lu = len(upper)
-            la2 = len(approach2)
-            conns = range(la1+1) + [n+la1 for n in conns_upper] + \
-                [la1 + lu ] + \
-                [n+la1+lu for n in conns_upper] + range(l-la2-1, l)
+            pts = lower + upper + [lower[0]]
+            conns = [0] + conns_lower + [len(lower)] + \
+                [n+len(lower) for n in conns_upper] + [len(pts)-1]
+        else:
+            pts = upper + lower + [upper[0]]
+            conns = [0] + conns_upper + [len(upper)] + \
+                [n+len(upper) for n in conns_lower] + [len(pts)-1]
 
-        return pts, conns, [beam_x, beam_y]
+        return pts, conns
+
+    def addApproach(self, pts, conns, bbox):
+        xmin, ymin, xmax, ymax = bbox
+        awidth = self.options.approachwidth
+
+        direct = min(10, awidth)
+
+        approach1 = []
+        approach2 = []
+        if self.options.approach <= 2: # Start with left/leading eadge
+            xdirect = pts[0][0] - direct
+            x = xmin - awidth
+        else: # Start with right/trailing edge
+            xdirect = pts[0][0] + direct
+            x = xmax + awidth
+
+        if self.options.approach in [1, 4]: # upwards
+            approach1 = [[x, ymin], [xdirect, pts[0][1]]]
+            approach2 = [[xdirect, pts[-1][1]], [x, ymax]]
+        elif self.options.approach in [2, 5] : # downwards
+            approach1 = [[x, ymax], [xdirect, pts[0][1]]]
+            approach2 = [[xdirect, pts[-1][1]], [x, ymin]]
+
+        pts = approach1 + pts + approach2
+        l = len(pts)
+        la1 = len(approach1)
+        la2 = len(approach2)
+        conns = range(la1+1) + [n+la1 for n in conns] + range(l-la2-1, l)
+
+        return pts, conns
 
     def foilToSVG(self, name, pts, layer,
                   offset_x=0, offset_y=0,
@@ -311,30 +337,49 @@ class Naca(inkex.Effect):
         g = inkex.etree.SubElement(layer, 'g', g_attribs)
 
         # Create SVG Path
-        style = self.style.copy()
+        style = self.constyle.copy()
         style['stroke'] = '#FF0000'
         foil_attribs = {'style':simplestyle.formatStyle(style), 'd':" ".join(lines)}
         foil = inkex.etree.SubElement(g, inkex.addNS('path','svg'), foil_attribs )
+
+    def bbox(self, pts):
+        xmin = xmax = pts[0][0]
+        ymin = ymax = pts[0][1]
+
+        for pt in pts:
+            xmin = min(xmin, pt[0])
+            xmax = max(xmax, pt[0])
+            ymin = min(ymin, pt[1])
+            ymax = max(ymax, pt[1])
+        return xmin, ymin, xmax, ymax
 
     def effect(self):
         naca_num = self.options.naca.strip()
 
 
-        foil1, connections1, beam1 = self.renderFoil(
+        foil1, connections1 = self.renderFoil(
             naca_num, self.options.size)
 
         if not foil1: # error
             return
 
+        bbox = self.bbox(foil1)
+
         if self.options.other:
             naca_num2 = self.options.naca2.strip()
             if not re.match(r"^\d{4,5}$", naca_num2):
                 naca_num2 = naca_num
-            foil2, connections2, beam2 = self.renderFoil(
-                naca_num2,
-                self.options.size2)
+            foil2, connections2 = self.renderFoil(
+                naca_num2, self.options.size2,
+                self.options.twist)
             if not foil2: # error
                 return
+            bbox2 = self.bbox(foil2)
+            bbox = [min(bbox[0],bbox2[0]),
+                    min(bbox[1],bbox2[1]),
+                    max(bbox[2],bbox2[2]),
+                    max(bbox[3],bbox2[3])]
+
 
         layers = []
         for item in self.document.getroot().getchildren():
@@ -349,22 +394,28 @@ class Naca(inkex.Effect):
         if self.options.other and len(layers) < 3:
             layers.append(self.addLayer("Connections"))
 
+        foil1, connections1 = self.addApproach(foil1, connections1, bbox)
+
         self.foilToSVG(naca_num, foil1, layers[0])
 
         if self.options.other:
-            offset_x = beam1[0]-beam2[0]
-            offset_y = beam1[1]-beam2[1]
-            #offset_x = (self.options.size - self.options.size2) * \
-            #    self.options.beampos / 100.0
+            foil2, connections2 = self.addApproach(foil2, connections2, bbox)
             self.foilToSVG(naca_num2, foil2, layers[1],
-                           offset_x=offset_x, offset_y=offset_y,
                            color="#0000FF")
             self.connectionsToSVG(foil1, connections1,
-                                  foil2, connections2, layers[2],
-                                  offset_x=offset_x, offset_y=offset_y)
+                                  foil2, connections2, layers[2])
 
-        self.addMarker('Arrow1Lstart', True)
-        self.addMarker('Arrow1Lend',  True)
+        self.addMarker(
+            'NacaArrowStart',
+            'M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z ',
+            'scale(0.8) rotate(180) translate(12.5,0)')
+        self.addMarker(
+            'NacaArrowEnd',
+            'M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z ',
+            'scale(0.8) rotate(180) translate(12.5,0)')
+        self.addMarker(
+            'NacaDot',
+            'M 5.0,0.0 L 0.0,5.0 L -5.0,0.0 L 0.0,-5.0 z ')
 
 if __name__ == '__main__':
     e = Naca()

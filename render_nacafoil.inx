@@ -35,6 +35,7 @@
 	<param name="other" type="boolean" _gui-text="Use differen Shape for UV plane">false</param>
         <param name="naca2" type="string" _gui-text="Naca number (4 or 5 digits)">Same as XY</param>
         <param name="size2" type="float" min="1.0" max="10000.0" _gui-text="Size">150.0</param>
+	<param name="twist" type="float" min="-45.0" max="45.0" _gui-text="Twist">0.0</param>
 	<param name="xoffset" type="float" min="1.0" max="10000.0" _gui-text="Offset X">0.0</param>
 	<param name="yoffset" type="float" min="1.0" max="10000.0" _gui-text="Offset Y">0.0</param>
       </page>
