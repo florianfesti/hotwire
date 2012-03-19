@@ -169,12 +169,14 @@ class Naca(inkex.Effect):
                     lo = mid+1
                 else:
                     hi = mid
-        pos = lo
+        pos = lo - 1
 
         d1 = posx - pts[pos][0]
         d2 = pts[pos+1][0] - posx
         dx = pts[pos+1][0] - pts[pos][0]
-        return pos, [posx, (pts[pos][1]*d2+pts[pos+1][1]*d1)/dx]
+        pt = [posx, (pts[pos][1]*d2+pts[pos+1][1]*d1)/dx]
+
+        return pos+1, pt
 
     def circle(self, diameter, npts=36):
         return [ [diameter*math.sin(2*math.pi*i/npts),
