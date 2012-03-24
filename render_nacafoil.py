@@ -38,14 +38,6 @@ class Naca(inkex.Effect):
         "marker-start" : "url(#NacaArrowStart)",
         "marker-end": "url(#NacaArrowEnd)",
               }
-    constyle = {
-        'stroke': "#000000",
-        'fill': 'none',
-        "stroke-width" : "0.5",
-        "marker-start" : "url(#NacaDot)",
-        "marker-end": "url(#NacaDot)",
-        "marker-mid": "url(#NacaDot)",
-        }
 
     def __init__(self):
         inkex.Effect.__init__(self)
