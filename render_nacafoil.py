@@ -35,7 +35,6 @@ class Naca(inkex.Effect):
         'stroke': "#000000",
         'fill': 'none',
         "stroke-width" : "0.5",
-        "marker-start" : "url(#NacaArrowStart)",
         "marker-end": "url(#NacaArrowEnd)",
               }
 
@@ -133,7 +132,7 @@ class Naca(inkex.Effect):
 
         if transform:
             arrow.set('transform', transform)
-        arrow.set('style', 'fill-rule:evenodd;stroke:#000000;stroke-width:1.0pt;marker-start:none')
+        arrow.set('style', 'fill:none;stroke:#000000;stroke-width:1.0pt;marker-start:none')
 
         marker.append(arrow)
 
