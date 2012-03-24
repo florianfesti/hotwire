@@ -293,6 +293,11 @@ class Naca(inkex.Effect):
                   offset_x=0, offset_y=0,
                   color="#000000"):
 
+        # Embed in group
+        g_attribs = {inkex.addNS('label','inkscape'):
+                         'Naca foil ' + name }
+        g = inkex.etree.SubElement(layer, 'g', g_attribs)
+        
         for path in paths:
             d = ["M"]
 
@@ -300,10 +305,6 @@ class Naca(inkex.Effect):
                 d.append("%.3f %.3f" % (self.view_center[0]+f*(x+offset_x),
                                         self.view_center[1]-f*(y+offset_y)))
 
-            # Embed in group
-            g_attribs = {inkex.addNS('label','inkscape'):
-                             'Naca foil ' + name }
-            g = inkex.etree.SubElement(layer, 'g', g_attribs)
 
             # Create SVG Path
             style = self.style.copy()
