@@ -23,6 +23,8 @@ import os
 import inkex
 import cubicsuperpath, bezmisc, cspsubdiv
 
+from pprint import pprint
+
 def distances(points):
     """Calculate the distances for a list of points
     :param points:	iterable of float pairs
@@ -100,70 +102,80 @@ def alignLinePaths(points1, points2):
     if idx1 < len(points1) or idx2 < len(points2):
         new1.append(points1[-1])
         new2.append(points2[-1])
-    return new1, new2
-                    
 
-def getPath(layer,flat=1.0):
-    points = []
-    for item in layer.getchildren():
-        if item.tag == inkex.addNS('path','svg'):
-            p = cubicsuperpath.parsePath(item.get('d'))
-            cspsubdiv.cspsubdiv(p, flat)
-                
-            for sp in p:
-                points += [c2 for (c0, c1, c2) in sp]
-    return points
+    points1[:] = new1
+    points2[:] = new2
 
-def getConnectors(layer):
-    result = []
-    for item in layer.getchildren():
-        if item.tag == inkex.addNS('path','svg'):
-            p = cubicsuperpath.parsePath(item.get('d'))
-            for sp in p:
-                result.append([ sp[0][1],sp[-1][1] ])
+def _removePath(d, p):
+    d[p[0]].remove(p)
+    if not d[p[0]]:
+        del d[p[0]]
+    d[p[-1]].remove(p)
+    if not d[p[-1]]:
+        del d[p[-1]]
+
+def sortPaths(paths):
+    pprint(paths, sys.stderr)
+    if not paths:
+        return []
+    if len(paths) == 1:
+        return [paths[0]]
+
+    ends = {}
+    for p in paths:
+        if len(p) == 1:
+            continue
+        if len(p) == 2 and p[0] == p[1]:
+            continue
+        ends.setdefault(p[0], []).append(p)
+        ends.setdefault(p[-1], []).append(p)
+
+
+    newpaths = []
+    pos = 0
+    for end, endlist in ends.iteritems():
+        if (len(endlist) % 2):
+            p = endlist[0]
+            newpaths.append(p)
+            if p[-1] == end:
+                p.reverse()
+            _removePath(ends, p)
+            break
+    else:
+        newpaths.append(paths[0])
+        _removePath(ends, paths[0])
+
+    while ends:
+        if not newpaths[pos][-1] in ends:
+            ### look for new loop
+            break
+        p2 = ends[newpaths[pos][-1]][0]
+        if p2[-1] == newpaths[pos][-1]:
+            p2.reverse()
+        pos += 1
+        newpaths.insert(pos, p2)
+        _removePath(ends, p2)
+
+    pprint(newpaths, sys.stderr)
+    return newpaths
+
+def mergePaths(paths):
+    result = paths[0]
+    for p in paths[1:]:
+        result.extend(p[1:])
     return result
 
-
-def splitPath(path, connectors):
-    result = []
-    for n, pt in enumerate(path):
-        for m, (pt1, pt2) in enumerate(connectors):
-            if ((bezmisc.pointdistance(pt, pt1)<0.1) or
-                (bezmisc.pointdistance(pt, pt2)<0.1)):
-                result.append((n, m))
-    result.append((len(path)-1, -1))
-    return result
-
-def splitPaths(path1, path2, connectors):
-    if not connectors:
-        return [path1, ], [path2, ]
-
-    cuts1 = splitPath(path1, connectors)
-    cuts2 = splitPath(path2, connectors)
-                      
-    # XXX checks
-    if len(cuts1) != len(cuts2):
-        sys.stderr.write("Error: XY split %i times while UV split %i times.\n\t Check connection paths!\n" %
-                         (len(cuts1), len(cuts2)))
-        return None, None
-    for (npt1, nc1), (npt2, nc2) in zip(cuts1, cuts2):
-        if nc1 != nc2:
-            sys.stderr.write("Error: Connections are not in the same order for both paths")
-            return None, None
-
-    paths1 = []
-    last = 0
-    for cut in cuts1:
-        paths1.append(path1[last:cut[0]+1])
-        last = cut[0]
-
-    paths2 = []
-    last = 0
-    for cut in cuts2:
-        paths2.append(path2[last:cut[0]+1])
-        last = cut[0]
-
-    return paths1, paths2
+def getPaths(layer,flat=1.0):
+    "return list of lists of float pairs"
+    paths = []
+    for item in layer.getchildren():
+        if item.tag == inkex.addNS('g', 'svg'):
+            for i in item.getchildren():
+                if i.tag == inkex.addNS('path','svg'):
+                    paths.append(Path(i, flat))
+        if item.tag == inkex.addNS('path','svg'):
+            paths.append(Path(item, flat))
+    return paths
 
 def projectToOuterPlane(z_xy, p_xy, z_uv, p_uv, width):
     """front cutting plane at z==0
@@ -177,6 +189,24 @@ def projectToOuterPlane(z_xy, p_xy, z_uv, p_uv, width):
     p_uv = [ u + d3*(u-x)/d2, V + d3*(v-y)/d2 ]
 
     return p_xy, p_uv
+
+class Path(list):
+
+    def __init__(self, tag, flatness):
+        self.tag = tag
+        self._readPath(tag, flatness)
+
+    def _readPath(self, item, flat):
+        p = cubicsuperpath.parsePath(item.get('d'))
+        cspsubdiv.cspsubdiv(p, flat)
+        subpaths = []
+        for sp in p:
+            sps = []
+            subpaths.append(sps)
+            for c0, c1, c2 in sp:
+                sps.append(tuple(c2))
+ 
+        self[:] = mergePaths(sortPaths(subpaths))
 
 class HotWire(inkex.Effect):
     def __init__(self):
@@ -234,24 +264,20 @@ class HotWire(inkex.Effect):
             # XX error message
             return
         
-        path1 = getPath(layers[0], self.options.flat)
+        path1 = sortPaths(getPaths(layers[0], self.options.flat))
         path2 = None
 
         if len(layers) >= 2:
-            path2 = getPath(layers[1], self.options.flat)
-        if len(layers) >= 3:
-            connectors = getConnectors(layers[2])
-        else:
-            connectors = []
+            path2 = sortPaths(getPaths(layers[1], self.options.flat))
 
         if not path2:
-            path1 = [path1]
             path2 = path1
         else:
-            path1, path2 = splitPaths(path1, path2, connectors)
-
-        if path1 is None: # error in splitPaths
-            return
+            if len(path1) != len(path2):
+                # XXX Error message
+                return
+            for i in range(len(path1)):
+                alignLinePaths(path1[i], path2[i])
 
         directory = self.options.directory
         if directory.startswith("$HOME"):
@@ -288,7 +314,7 @@ F%.0f (Speed)
             if not p1:
                 continue
             # sys.stderr.write("%s %s\n" % (repr(p1), repr(p2)))
-            p1, p2 = alignLinePaths(p1, p2)
+            #p1, p2 = alignLinePaths(p1, p2)
             # XXX projection to outer planes
             for i in xrange(len(p1)):
                 x, y = p1[i]
