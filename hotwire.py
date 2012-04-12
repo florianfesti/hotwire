@@ -214,6 +214,15 @@ class Path(list):
  
         self[:] = mergePaths(sortPaths(subpaths))
 
+    def setNr(self, nr):
+        self.nr = nr
+
+    def backToSVG(self):
+        d = ["M"]
+        for pt in self:
+            d.append("%.3f %.3f" % pt)
+        self.tag.set("d", " ".join(d))
+
 class HotWire(inkex.Effect):
     def __init__(self):
         inkex.Effect.__init__(self)
@@ -284,6 +293,12 @@ class HotWire(inkex.Effect):
                 return
             for i in range(len(path1)):
                 alignLinePaths(path1[i], path2[i])
+
+        # Tell the paths which number they have in the overall order
+        for paths in (path1, path2):
+            for nr, p in enumerate(paths):
+                p.setNr(nr)
+                p.backToSVG()
 
         directory = self.options.directory
         if directory.startswith("$HOME"):
