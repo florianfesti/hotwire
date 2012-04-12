@@ -115,7 +115,7 @@ def _removePath(d, p):
         del d[p[-1]]
 
 def sortPaths(paths):
-    pprint(paths, sys.stderr)
+    #pprint(paths, sys.stderr)
     if not paths:
         return []
     if len(paths) == 1:
@@ -162,7 +162,7 @@ def sortPaths(paths):
         newpaths.insert(pos, p2)
         _removePath(ends, p2)
 
-    pprint(newpaths, sys.stderr)
+    #pprint(newpaths, sys.stderr)
     return newpaths
 
 def mergePaths(paths):
