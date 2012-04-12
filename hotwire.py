@@ -148,7 +148,13 @@ def sortPaths(paths):
     while ends:
         if not newpaths[pos][-1] in ends:
             ### look for new loop
-            break
+            for n, p in enumerate(newpaths):
+                if p[-1] in ends:
+                    pos = n
+                    break
+            else:
+                # error, no continuous path found
+                break
         p2 = ends[newpaths[pos][-1]][0]
         if p2[-1] == newpaths[pos][-1]:
             p2.reverse()
