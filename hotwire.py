@@ -341,7 +341,7 @@ class HotWire(inkex.Effect):
         path1 = sortPaths(getPaths(layers[0], self.options.flat))
         path2 = None
 
-        if len(layers) >= 2:
+        if len(layers) >= 2 and self.options.twosided:
             path2 = sortPaths(getPaths(layers[1], self.options.flat))
 
         if not path2:
@@ -349,7 +349,11 @@ class HotWire(inkex.Effect):
         else:
             if len(path1) != len(path2):
                 # XXX Error message
-                return
+                sys.stderr.write("Two sides have a different number of paths")
+                l = min(len(path1), len(path2))
+                path1 = path1[:l]
+                path2 = path2[:l]
+                #return
             for i in range(len(path1)):
                 alignLinePaths(path1[i], path2[i])
 
