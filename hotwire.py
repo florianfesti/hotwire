@@ -42,7 +42,7 @@ def distances(points):
 def intermediatePoint(pt1, pt2, relDist=0.5):
     q = relDist
     r = 1 - relDist 
-    return [pt1[0]*r + pt2[0]*q, pt1[1]*r + pt2[1]*q]
+    return (pt1[0]*r + pt2[0]*q, pt1[1]*r + pt2[1]*q)
 
 def alignLinePaths(points1, points2):
     """Takes two arrays of (x, y) points
@@ -114,6 +114,9 @@ def _removePath(d, p):
     if not d[p[-1]]:
         del d[p[-1]]
 
+def roundpt(pt):
+    return (round(pt[0], 6), round(pt[1], 6))
+
 def sortPaths(paths):
     #pprint(paths, sys.stderr)
     if not paths:
@@ -127,6 +130,9 @@ def sortPaths(paths):
             continue
         if len(p) == 2 and p[0] == p[1]:
             continue
+        # make sure points are identical
+        p[0] = roundpt(p[0])
+        p[-1] = roundpt(p[-1])
         ends.setdefault(p[0], []).append(p)
         ends.setdefault(p[-1], []).append(p)
 
