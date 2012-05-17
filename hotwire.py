@@ -20,7 +20,7 @@ import sys
 sys.path.append("/usr/share/inkscape/extensions")
 import os
 
-import inkex
+import inkex, simplestyle, simpletransform
 import cubicsuperpath, bezmisc, cspsubdiv
 
 from pprint import pprint
@@ -197,10 +197,20 @@ def projectToOuterPlane(z_xy, p_xy, z_uv, p_uv, width):
     return p_xy, p_uv
 
 class Path(list):
+    rainbow = [
+        0xFE0000, # red
+        0xFE7E00, # orange
+        0xFEFE00, # yellow
+        0x00FE00, # green
+        0x0000FE, # blue
+        0x6600FE, # indigo
+        0x8A00FE, # violet
+        ]
 
     def __init__(self, tag, flatness):
         self.tag = tag
         self._readPath(tag, flatness)
+        self.nr = 0
 
     def _readPath(self, item, flat):
         p = cubicsuperpath.parsePath(item.get('d'))
@@ -217,13 +227,56 @@ class Path(list):
     def setNr(self, nr):
         self.nr = nr
 
-    def backToSVG(self):
+    def backToSVG(self, side, style):
+        # write back geometry
         d = ["M"]
         for pt in self:
             d.append("%.3f %.3f" % pt)
         self.tag.set("d", " ".join(d))
+        # set style and color
+        value = self.rainbow[self.nr % 7] >> side
+
+        style = style.copy()
+        style["stroke"] = "#%06X" % value
+        sys.stderr.write("%s %i\n" % (style["stroke"], side))
+        self.tag.set("style", simplestyle.formatStyle(style))
 
 class HotWire(inkex.Effect):
+
+    style = {
+        'stroke': "#000000",
+        'fill': 'none',
+        "stroke-width" : "0.5",
+        "marker-end": "url(#NacaArrowEnd)",
+              }
+
+    def addMarker(self, name, path, transform=None):
+
+        defs = self.xpathSingle('/svg:svg//svg:defs')
+
+        if defs == None:
+            defs = inkex.etree.SubElement(self.document.getroot(),inkex.addNS('defs','svg'))
+        for item in defs.getchildren():
+            if item.get("id") == name:
+                return
+
+        marker = inkex.etree.SubElement(defs ,inkex.addNS('marker','svg'))
+        marker.set('id', name)
+        marker.set('orient', 'auto')
+        marker.set('refX', '0.0')
+        marker.set('refY', '0.0')
+        marker.set('style', 'overflow:visible')
+        marker.set(inkex.addNS('stockid','inkscape'), name)
+
+        arrow = inkex.etree.Element("path")
+        arrow.set('d', path)
+
+        if transform:
+            arrow.set('transform', transform)
+        arrow.set('style', 'fill:none;stroke:#000000;stroke-width:1.0pt;marker-start:none')
+
+        marker.append(arrow)
+
     def __init__(self):
         inkex.Effect.__init__(self)
         self.OptionParser.add_option("--main",
@@ -295,10 +348,28 @@ class HotWire(inkex.Effect):
                 alignLinePaths(path1[i], path2[i])
 
         # Tell the paths which number they have in the overall order
-        for paths in (path1, path2):
-            for nr, p in enumerate(paths):
+        for nr, p in enumerate(path1):
+            p.setNr(nr)
+            sys.stderr.write("%i\n" % (nr))
+            p.backToSVG(0, self.style)
+        if path2 is not path1:
+            for nr, p in enumerate(path2):
                 p.setNr(nr)
-                p.backToSVG()
+                p.backToSVG(1, self.style)
+
+        # Add Markers to SVG file (if not yet present
+        self.addMarker(
+            'NacaArrowStart',
+            'M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z ',
+            'scale(0.8) rotate(180) translate(12.5,0)')
+        self.addMarker(
+            'NacaArrowEnd',
+            'M 0.0,0.0 L 5.0,-5.0 L -12.5,0.0 L 5.0,5.0 L 0.0,0.0 z ',
+            'scale(0.8) rotate(180) translate(12.5,0)')
+        self.addMarker(
+            'NacaDot',
+            'M 5.0,0.0 L 0.0,5.0 L -5.0,0.0 L 0.0,-5.0 z ')
+
 
         directory = self.options.directory
         if directory.startswith("$HOME"):
