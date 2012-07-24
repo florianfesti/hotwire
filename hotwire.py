@@ -114,9 +114,6 @@ def _removePath(d, p):
     if not d[p[-1]]:
         del d[p[-1]]
 
-def roundpt(pt):
-    return (round(pt[0], 6), round(pt[1], 6))
-
 def sortPaths(paths):
     #pprint(paths, sys.stderr)
     if not paths:
@@ -124,19 +121,30 @@ def sortPaths(paths):
     if len(paths) == 1:
         return [paths[0]]
 
+    # make sure same points are really identical
+    tmp = [(p[0], 0, p) for p in paths] + \
+        [(p[-1], -1, p) for p in paths]
+
+    for i in xrange(len(tmp)):
+        for j in xrange(i+1, len(tmp)):
+            if (abs(tmp[i][0][0]-tmp[j][0][0]) < 0.001 and
+                abs(tmp[i][0][1]-tmp[j][0][1]) < 0.001):
+                tmp[j][2][tmp[j][1]] = tmp[i][0]
+
+    del tmp
+
+    # build ends hash: endpoint -> [paths]
     ends = {}
     for p in paths:
         if len(p) == 1:
             continue
         if len(p) == 2 and p[0] == p[1]:
             continue
-        # make sure points are identical
-        p[0] = roundpt(p[0])
-        p[-1] = roundpt(p[-1])
+
         ends.setdefault(p[0], []).append(p)
         ends.setdefault(p[-1], []).append(p)
 
-
+    # look for a good starting point
     newpaths = []
     pos = 0
     for end, endlist in ends.iteritems():
@@ -148,6 +156,7 @@ def sortPaths(paths):
             _removePath(ends, p)
             break
     else:
+        # only circles, start somewhere
         newpaths.append(paths[0])
         _removePath(ends, paths[0])
 
@@ -182,9 +191,11 @@ def getPaths(layer,flat=1.0):
     paths = []
     for item in layer.getchildren():
         if item.tag == inkex.addNS('g', 'svg'):
+            transform = simpletransform.parseTransform(item.get('transform'))
             for i in item.getchildren():
                 if i.tag == inkex.addNS('path','svg'):
-                    paths.append(Path(i, flat))
+                    paths.append(Path(i, flat, transform))
+
         if item.tag == inkex.addNS('path','svg'):
             paths.append(Path(item, flat))
     return paths
@@ -203,6 +214,7 @@ def projectToOuterPlane(z_xy, p_xy, z_uv, p_uv, width):
     return p_xy, p_uv
 
 class Path(list):
+
     rainbow = [
         0xFE0000, # red
         0xFE7E00, # orange
@@ -213,12 +225,12 @@ class Path(list):
         0x8A00FE, # violet
         ]
 
-    def __init__(self, tag, flatness):
+    def __init__(self, tag, flatness, transform=[[1.0,0.0,0.0],[0.0,1.0,0.0]]):
         self.tag = tag
-        self._readPath(tag, flatness)
+        self._readPath(tag, flatness, transform)
         self.nr = 0
 
-    def _readPath(self, item, flat):
+    def _readPath(self, item, flat, transform):
         p = cubicsuperpath.parsePath(item.get('d'))
         cspsubdiv.cspsubdiv(p, flat)
         subpaths = []
@@ -226,7 +238,9 @@ class Path(list):
             sps = []
             subpaths.append(sps)
             for c0, c1, c2 in sp:
-                sps.append(tuple(c2))
+                pt = list(c2)
+                simpletransform.applyTransformToPoint(transform, pt)
+                sps.append(tuple(pt))
  
         self[:] = mergePaths(sortPaths(subpaths))
 
@@ -246,6 +260,11 @@ class Path(list):
         style["stroke"] = "#%06X" % value
         sys.stderr.write("%s %i\n" % (style["stroke"], side))
         self.tag.set("style", simplestyle.formatStyle(style))
+
+        p = self.tag.getparent()
+        if "transform" in p.attrib:
+            del p.attrib["transform"]
+
 
 class HotWire(inkex.Effect):
 
