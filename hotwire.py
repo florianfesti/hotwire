@@ -114,6 +114,28 @@ def _removePath(d, p):
     if not d[p[-1]]:
         del d[p[-1]]
 
+
+def _cmpStartPts(pt1, pt2, ends):
+    l1 = len(ends[pt1])
+    l2 = len(ends[pt2])
+
+    # Prefere uneven connection count
+    if (l1 % 2) and not (l2 % 2):
+        return 1
+    if not (l1 %2) and (l2 % 2):
+        return -1
+    # Prefere starts
+    s_cnt1 = reduce(lambda x, y: x+int(y[0] is pt1), ends[pt1], 0)
+    s_cnt2 = reduce(lambda x, y: x+int(y[0] is pt2), ends[pt2], 0)
+    s_cnt1 = min(s_cnt1, 1)
+    s_cnt2 = min(s_cnt2, 1)
+
+    if s_cnt1 != s_cnt2:
+        return cmp(s_cnt1, s_cnt2)
+
+    # Prefere less connections
+    return cmp(l1, l2)
+
 def sortPaths(paths):
     #pprint(paths, sys.stderr)
     if not paths:
@@ -145,20 +167,21 @@ def sortPaths(paths):
         ends.setdefault(p[-1], []).append(p)
 
     # look for a good starting point
-    newpaths = []
+    startpt = ends.iterkeys().next()
     pos = 0
-    for end, endlist in ends.iteritems():
-        if (len(endlist) % 2):
-            p = endlist[0]
-            newpaths.append(p)
-            if p[-1] == end:
-                p.reverse()
-            _removePath(ends, p)
+    for end in ends.iterkeys():
+        if _cmpStartPts(end, startpt, ends) > 0:
+            startpt = end
+
+    newpaths = []
+    for path in ends[startpt]:
+        if path[0] == startpt:
+            newpaths = [path]
             break
-    else:
-        # only circles, start somewhere
-        newpaths.append(paths[0])
-        _removePath(ends, paths[0])
+    else: # no start point
+        newpaths = [ ends[startpt][0] ]
+        newpaths[0].reverse()
+    _removePath(ends, newpaths[0])
 
     while ends:
         if not newpaths[pos][-1] in ends:
