@@ -172,10 +172,19 @@ class Naca(inkex.Effect):
         return pos+1, pt
 
     def circle(self, diameter, npts=36):
-        return [ [diameter*math.sin(2*math.pi*i/npts),
-                  diameter*math.cos(2*math.pi*i/npts)] for i in xrange(npts+1)]
+        """starts on top, runs left"""
+        radius = diameter * 0.5
+        return [ [-radius*math.sin(2*math.pi*i/npts),
+                  radius*math.cos(2*math.pi*i/npts)] for i in xrange(npts+1)]
+
+    def halfcircle(self, diameter, npts=18):
+        """from top to the left"""
+        radius = diameter * 0.5
+        return [ [-radius*math.sin(math.pi*i/npts),
+                  radius*math.cos(math.pi*i/npts)] for i in xrange(npts+1)]
 
     def rectangle(self, dx, dy):
+        """starts on top, runs left"""
         x = dx/2.0
         y = dy/2.0
         return [ [0.0,  y],
@@ -184,6 +193,25 @@ class Naca(inkex.Effect):
                  [  x, -y],
                  [  x,  y],
                  [0.0,  y]]
+
+    def halfrectangle(self, dx, dy):
+        """starts on top runs left"""
+        x = dx/2.0
+        y = dy/2.0
+        return [ [0.0,  y],
+                 [ -x,  y],
+                 [ -x, -y],
+                 [0.0, -y]]
+
+    def upsidedown(self, pts):
+        return [[x, -y] for x,y in pts]
+
+    def lefttoright(self, pts):
+        return [[-x, y] for x,y in pts]
+
+    def move(self, dx, dy, pts):
+        return [[x+dx, y+dy] for x,y in pts]
+
 
     def renderFoil(self, naca_num, size, twist=0.0):
         l = len(naca_num)
@@ -217,7 +245,7 @@ class Naca(inkex.Effect):
         for pt in pt_up, pt_low:
             simpletransform.applyTransformToPoint(trans, pt)
 
-        if self.options.beamtype in [1,2,3,4]: # center beam
+        if self.options.beamtype in [1,2,11,12]: # center beam
             if self.options.beamtype in [1,2]: # round
                 beam = self.circle(self.options.beamwidth)
             else: # rectangular
@@ -225,21 +253,41 @@ class Naca(inkex.Effect):
                                       self.options.beamheight)
 
             if self.options.beamtype in [1, 3]: # from above
-                bl = len(beam)
                 upper = [ upper[0][:n_up] + [ pt_up ],
                           [pt_up, beam[0]],
                           beam,
                           [ beam[-1], pt_up ],
                           [pt_up] + upper[0][n_up :] ]
             else: # from below
-                for pt in beam: # mirror vertically
-                    pt[1] = -pt[1]
-                bl = len(beam)
+                beam = self.upsidedown(beam)
                 lower = [ lower[0][:n_low] + [ pt_low ],
                           [pt_low, beam[0]],
                           beam,
                           [beam[-1], pt_low ],
                           [pt_low] + lower[0][n_low:]]
+        elif self.options.beamtype in [3,13]:
+            if self.options.beamtype == 3:
+                beamleft = self.halfcircle(self.options.beamwidth)
+            else:
+                beamleft = self.halfrectangle(self.options.beamwidth,
+                                              self.options.beamheight)
+            beamright = self.lefttoright(beamleft)
+            beamleft.reverse()
+            upper = [ upper[0][:n_up] + [ pt_up ],
+                      [pt_up, beamright[0]],
+                      beamright,
+                      [beamright[-1], pt_low],
+                      [pt_low, beamleft[0]],
+                      beamleft,
+                      [beamleft[-1], pt_up],
+                      [pt_up] + upper[0][n_up :] ]
+            lower = [ lower[0][:n_low] + [ pt_low ],
+                      self.move(10,0, [pt_low] + lower[0][n_low:])]
+
+            for i in xrange(4):
+                upper[i] = self.move(10,0, upper[i])
+            # add connection below
+            upper[4:4] = [ [upper[3][-1],upper[4][0]]]
 
         else: # Surface beam(s)
             if self.options.beamtype in [5, 7]: # Top beam

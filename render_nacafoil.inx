@@ -21,11 +21,13 @@
       </page>
       <page name="beam" _gui-text="Beam Hole">
 	<param name="beamtype" type="optiongroup" appearance="minimal" _gui-text="Beam Type">
-	  <_option value="0">None</_option>
-	  <_option value="1">Round cut from above</_option>
-	  <_option value="2">Round cut from below</_option>
-	  <_option value="3">Rectangular from above</_option>
-	  <_option value="4">Rectangular from below</_option>
+	  <_option value= "0">None</_option>
+	  <_option value= "1">Round cut from above</_option>
+	  <_option value= "2">Round cut from below</_option>
+	  <_option value= "3">Round cut through</_option>
+	  <_option value="11">Rectangular from above</_option>
+	  <_option value="12">Rectangular from below</_option>
+	  <_option value="13">Rectangular cut through</_option>
 	</param>
 	<param name="beampos" type="float" min="0.0" max="100.0" _gui-text="Position (%)">40</param>
 	<param name="beamwidth" type="float" min="0.0" max="1000.0" _gui-text="Width/Diameter (mm)">10</param>
